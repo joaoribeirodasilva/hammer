@@ -17,15 +17,17 @@ type Limits struct {
 }
 
 type Main struct {
-	Db        *database.Database
-	DsnMaster string
-	DsnClient string
-	IsClient  bool
-	IsHelp    bool
-	ServerID  int
-	Users     Limits
-	Articles  Limits
-	Accesses  Limits
+	Db           *database.Database
+	DsnMaster    string
+	DsnClient    string
+	EngineMaster string
+	EngineClient string
+	IsClient     bool
+	IsHelp       bool
+	ServerID     int
+	Users        Limits
+	Articles     Limits
+	Accesses     Limits
 }
 
 func main() {
@@ -47,6 +49,8 @@ func (m *Main) readEnv() {
 
 	m.DsnMaster = os.Getenv("DSN_MASTER")
 	m.DsnClient = os.Getenv("DSN_CLIENT")
+	m.EngineMaster = os.Getenv("ENGINE_MASTER")
+	m.EngineClient = os.Getenv("ENGINE_CLIENT")
 
 	if m.DsnMaster == "" && !m.IsClient {
 		log.Fatal("the program is running as master but no DSN_MASTER was found inside the .env file")
@@ -54,12 +58,18 @@ func (m *Main) readEnv() {
 		log.Fatal("the program is running as client but no DSN_CLIENT was found inside the .env file")
 	}
 
+	if m.EngineMaster == "" && !m.IsClient {
+		log.Fatal("the program is running as master but no ENGINE_MASTER was found inside the .env file")
+	} else if m.EngineClient == "" && m.IsClient {
+		log.Fatal("the program is running as client but no ENGINE_CLIENT was found inside the .env file")
+	}
+
 	m.Db = database.New()
 
 	if !m.IsClient {
-		m.Db.Connect(m.DsnMaster)
+		m.Db.Connect(m.DsnMaster, m.EngineMaster)
 	} else {
-		m.Db.Connect(m.DsnClient)
+		m.Db.Connect(m.DsnClient, m.EngineClient)
 	}
 }
 
