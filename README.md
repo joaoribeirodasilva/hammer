@@ -93,5 +93,25 @@ Bellow you can check the relationships between the tables.
 
 ```
 
+## Empty tables
+
+To empty the database tables after running a test just type the following SQL commands in your favorite database IDE.
+
+For SQL Server type:
+
+```sql
+TRUNCATE TABLE [dbo].accesses;
+TRUNCATE TABLE [dbo].articles;
+DELETE FROM [dbo].users;
+GO
+```
+
+For MySQL/MariaDB type:
+```sql
+TRUNCATE TABLE KafkaReplication.accesses;
+TRUNCATE TABLE KafkaReplication.articles;
+DELETE FROM KafkaReplication.users;
+```
+
 
 
