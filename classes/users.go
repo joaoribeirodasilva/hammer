@@ -1,4 +1,4 @@
-package main
+package classes
 
 import (
 	"encoding/csv"
@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/joaoribeirodasilva/hammer/database"
 	"github.com/joaoribeirodasilva/hammer/models"
@@ -36,20 +37,24 @@ type CreatedUsers struct {
 }
 
 type Users struct {
-	Db          *database.Database
-	Current     int
-	Max         int
-	Articles    *Articles
-	first_names []FirstName
-	surnames    []Surname
-	domains     []Domain
-	users       []CreatedUsers
+	Db            *database.Database
+	Current       int
+	Max           int
+	TotalArticles int
+	Articles      *Articles
+	currentUser   int
+	first_names   []FirstName
+	surnames      []Surname
+	domains       []Domain
+	users         []CreatedUsers
 }
 
-func (a *Users) InitUsers(db *database.Database, articles *Articles) {
+func (a *Users) InitUsers(max int, db *database.Database, articles *Articles) {
 
 	a.Db = db
 	a.Articles = articles
+	a.Max = max
+	a.TotalArticles = 0
 	a.users = make([]CreatedUsers, 0)
 	a.loadNames()
 	a.loadSurnames()
@@ -72,7 +77,7 @@ func (a *Users) CreateUser() *CreatedUsers {
 
 	usr.FirstName = a.firstName()
 	usr.LastName = a.lastName()
-	usr.Email = fmt.Sprintf("%s.%s@%s", usr.FirstName, usr.LastName, a.domain())
+	usr.Email = strings.ToLower(fmt.Sprintf("%s.%s@%s", usr.FirstName, usr.LastName, a.domain()))
 
 	result := a.Db.Conn.Save(usr)
 	if result.Error != nil {
@@ -86,10 +91,15 @@ func (a *Users) CreateUser() *CreatedUsers {
 	return cUser
 }
 
-func (a *Users) GetRandomUser() *CreatedUsers {
+func (a *Users) GetNextUser() *CreatedUsers {
 
-	userIndex := rand.Intn(len(a.users) - 1)
-	return &a.users[userIndex]
+	user := &a.users[a.currentUser]
+	a.currentUser++
+	if a.currentUser >= len(a.users) {
+		a.currentUser = 0
+	}
+
+	return user
 }
 
 func (a *Users) CreateUserArticle(user *CreatedUsers) {
@@ -100,6 +110,7 @@ func (a *Users) CreateUserArticle(user *CreatedUsers) {
 
 	a.Articles.CreateArticle(user.user.ID)
 	user.NumArticles++
+	a.TotalArticles++
 }
 
 func (a *Users) IsMax() bool {
@@ -121,7 +132,7 @@ func (a *Users) firstName() string {
 func (a *Users) lastName() string {
 
 	nameIndex := rand.Intn(len(a.surnames)-1) + 1
-	return a.surnames[nameIndex].name
+	return strings.ToLower(a.surnames[nameIndex].name)
 }
 
 func (a *Users) domain() string {
@@ -149,11 +160,11 @@ func (a *Users) loadCSV(fileType string) error {
 
 	filePath := ""
 	if fileType == "surnames" {
-		filePath = fmt.Sprintf("%s/%s", a.getBinPath(), PATH_SURNAMES)
+		filePath = fmt.Sprintf("%s", PATH_SURNAMES)
 	} else if fileType == "first_names" {
-		filePath = fmt.Sprintf("%s/%s", a.getBinPath(), PATH_FIRST_NAMES)
+		filePath = fmt.Sprintf("%s", PATH_FIRST_NAMES)
 	} else if fileType == "domains" {
-		filePath = fmt.Sprintf("%s/%s", a.getBinPath(), PATH_DOMAINS)
+		filePath = fmt.Sprintf("%s", PATH_DOMAINS)
 	}
 
 	log.Printf("Reading data file '%s'\n", filePath)

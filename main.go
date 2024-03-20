@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/joaoribeirodasilva/hammer/classes"
 	"github.com/joaoribeirodasilva/hammer/database"
 	"github.com/joho/godotenv"
 )
@@ -20,6 +21,7 @@ type Main struct {
 	DsnMaster string
 	DsnClient string
 	IsClient  bool
+	IsHelp    bool
 	ServerID  int
 	Users     Limits
 	Articles  Limits
@@ -31,7 +33,7 @@ func main() {
 	m := &Main{IsClient: false}
 	m.readEnv()
 	m.cmdArgs()
-
+	m.run()
 }
 
 func (m *Main) readEnv() {
@@ -59,36 +61,58 @@ func (m *Main) readEnv() {
 	} else {
 		m.Db.Connect(m.DsnClient)
 	}
-
-	m.run()
 }
 
 func (m *Main) run() {
 
-	users := &Users{}
-	articles := &Articles{}
-	accesses := &Accesses{}
+	users := &classes.Users{}
+	articles := &classes.Articles{}
+	accesses := &classes.Accesses{}
 
 	if !m.IsClient {
-		articles.InitArticles(5, 10, m.Db)
-		users.InitUsers(m.Db, articles)
-	}
-	accesses.InitAccesses(m.ServerID, m.Db)
-
-	if m.Accesses.Current < m.Accesses.Max {
-		accesses.CreateAccess()
-		m.Accesses.Current++
+		articles.InitArticles(5, 10, m.Articles.Max, m.Db)
+		users.InitUsers(m.Users.Max, m.Db, articles)
 	}
 
-	var usr *CreatedUsers
-	if m.Users.Current < m.Users.Max {
-		usr = users.CreateUser()
-		users.CreateUserArticle(usr)
-	} else {
-		usr = users.GetRandomUser()
-	}
+	accesses.InitAccesses(m.ServerID, m.Accesses.Max, m.Db)
 
-	users.CreateUserArticle(usr)
+	notFinish := true
+
+	for notFinish {
+
+		if accesses.Current < accesses.Max {
+
+			accesses.CreateAccess()
+			m.Accesses.Current++
+
+		}
+
+		if !m.IsClient {
+
+			var usr *classes.CreatedUsers
+
+			if users.Current < users.Max {
+
+				usr = users.CreateUser()
+				users.CreateUserArticle(usr)
+
+			} else {
+
+				usr = users.GetNextUser()
+				users.CreateUserArticle(usr)
+
+			}
+
+			users.CreateUserArticle(usr)
+
+			notFinish = accesses.Current < accesses.Max || users.Current < users.Max || users.TotalArticles < m.Articles.Max*m.Users.Max
+		} else {
+			notFinish = accesses.Current < accesses.Max
+		}
+
+		fmt.Printf("\rAdded %d accesses, %d users, %d articles", accesses.Current, users.Current, users.TotalArticles)
+	}
+	fmt.Println("")
 
 }
 
@@ -99,6 +123,7 @@ func (m *Main) cmdArgs() {
 	flag.IntVar(&m.Users.Max, "u", 10, "maximum number of users to create. Default(10)")
 	flag.IntVar(&m.Articles.Max, "apu", 10, "maximum number of articles per user to create. Default(10)")
 	flag.IntVar(&m.Accesses.Max, "acc", 100, "maximum number of accesses to create. Default(100)")
+	flag.BoolVar(&m.IsHelp, "help", false, "prints this help")
 
 	flag.Parse()
 
@@ -110,6 +135,11 @@ func (m *Main) cmdArgs() {
 		log.Fatalf("the number of users to create can't be 0")
 	} else if m.Articles.Max == 0 {
 		log.Fatalf("the number of articles per user to create can't be 0")
+	}
+
+	if m.IsHelp {
+		flag.PrintDefaults()
+		os.Exit(0)
 	}
 
 }

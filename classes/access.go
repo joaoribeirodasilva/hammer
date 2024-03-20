@@ -1,4 +1,4 @@
-package main
+package classes
 
 import (
 	"fmt"
@@ -16,12 +16,11 @@ type Accesses struct {
 	serverId int
 }
 
-func (a *Accesses) InitAccesses(serverId int, Db *database.Database) *Accesses {
+func (a *Accesses) InitAccesses(serverId int, max int, Db *database.Database) {
 
-	acc := new(Accesses)
-	acc.Db = Db
-	acc.serverId = serverId
-	return acc
+	a.Db = Db
+	a.serverId = serverId
+	a.Max = max
 }
 
 func (a *Accesses) CreateAccess() {

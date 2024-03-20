@@ -1,4 +1,4 @@
-package main
+package classes
 
 import (
 	"log"
@@ -17,9 +17,11 @@ type Articles struct {
 	maxContentParagraphs int
 }
 
-func (a *Articles) InitArticles(maxTitleWords int, maxContentParagraphs int, Db *database.Database) {
+func (a *Articles) InitArticles(maxTitleWords int, maxContentParagraphs int, max int, Db *database.Database) {
 	a.Db = Db
-	a.loremIpsumGenerator = loremipsum.New()
+	a.Max = max
+	a.maxTitleWords = maxTitleWords
+	a.maxContentParagraphs = maxContentParagraphs
 }
 
 func (a *Articles) CreateArticle(userId uint) {
@@ -38,12 +40,14 @@ func (a *Articles) CreateArticle(userId uint) {
 
 func (a *Articles) randomTitle() string {
 
+	a.loremIpsumGenerator = loremipsum.New()
 	numWords := rand.Intn(a.maxTitleWords-1) + 1
 	return a.loremIpsumGenerator.Words(numWords)
 }
 
 func (a *Articles) randomContent() string {
 
+	a.loremIpsumGenerator = loremipsum.New()
 	numParagraphs := rand.Intn(a.maxContentParagraphs-1) + 1
 	return a.loremIpsumGenerator.Paragraphs(numParagraphs)
 }
