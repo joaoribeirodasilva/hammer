@@ -2,30 +2,41 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 
+	"github.com/joaoribeirodasilva/hammer/database"
 	"github.com/joaoribeirodasilva/hammer/models"
 )
 
 type Accesses struct {
+	Db       *database.Database
+	Current  int
+	Max      int
 	serverId int
 }
 
-func InitAccesses(serverId int) *Accesses {
+func (a *Accesses) InitAccesses(serverId int, Db *database.Database) *Accesses {
 
 	acc := new(Accesses)
+	acc.Db = Db
 	acc.serverId = serverId
 	return acc
 }
 
-func (a *Accesses) CreateAccess() *models.Accesses {
+func (a *Accesses) CreateAccess() {
 
 	acc := new(models.Accesses)
 
 	acc.Ip = a.ip()
 	acc.OriginID = uint(a.serverId)
 
-	return acc
+	result := a.Db.Conn.Create(acc)
+	if result.Error != nil {
+		log.Fatalf("failed to create Access record. ERR: %s", result.Error.Error())
+	}
+
+	a.Current++
 
 }
 

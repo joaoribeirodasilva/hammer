@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/joaoribeirodasilva/hammer/database"
 	"github.com/joaoribeirodasilva/hammer/models"
 )
 
@@ -30,84 +31,85 @@ type Domain struct {
 }
 
 type CreatedUsers struct {
-	ID          int
+	user        *models.Users
 	NumArticles int
 }
 
 type Users struct {
+	Db          *database.Database
+	Current     int
+	Max         int
+	Articles    *Articles
 	first_names []FirstName
 	surnames    []Surname
 	domains     []Domain
 	users       []CreatedUsers
-	max         int
-	maxArticles int
-	created     int
 }
 
-func (a *Users) InitUsers() {
+func (a *Users) InitUsers(db *database.Database, articles *Articles) {
 
+	a.Db = db
+	a.Articles = articles
+	a.users = make([]CreatedUsers, 0)
 	a.loadNames()
 	a.loadSurnames()
 	a.loadDomains()
-	a.created = 0
+	a.Current = 0
 }
 
-func (a *Users) CreateUser() *models.Users {
+func (a *Users) CreateUser() *CreatedUsers {
+
+	if a.IsMax() {
+		return nil
+	}
+
+	cUser := &CreatedUsers{
+		user:        nil,
+		NumArticles: 0,
+	}
 
 	usr := new(models.Users)
 
 	usr.FirstName = a.firstName()
 	usr.LastName = a.lastName()
 	usr.Email = fmt.Sprintf("%s.%s@%s", usr.FirstName, usr.LastName, a.domain())
-	a.created++
 
-	return usr
+	result := a.Db.Conn.Save(usr)
+	if result.Error != nil {
+		log.Fatalf("failed to create User record. ERR: %s", result.Error.Error())
+	}
+
+	cUser.user = usr
+	a.users = append(a.users, *cUser)
+	a.Current++
+
+	return cUser
 }
 
 func (a *Users) GetRandomUser() *CreatedUsers {
 
-	userIndex := rand.Intn(len(a.first_names) - 1)
+	userIndex := rand.Intn(len(a.users) - 1)
 	return &a.users[userIndex]
 }
 
-func (a *Users) AddUser(userId int) bool {
+func (a *Users) CreateUserArticle(user *CreatedUsers) {
 
-	if len(a.users) >= a.max {
-		return false
+	if a.IsMaxArticles(user) {
+		return
 	}
 
-	user := CreatedUsers{ID: userId, NumArticles: 0}
-	a.users = append(a.users, user)
-
-	return true
+	a.Articles.CreateArticle(user.user.ID)
+	user.NumArticles++
 }
 
 func (a *Users) IsMax() bool {
 
-	return len(a.users) >= a.max
+	return len(a.users) >= a.Max
 }
 
-func (a *Users) IsMaxArticles(userId int) bool {
+func (a *Users) IsMaxArticles(user *CreatedUsers) bool {
 
-	for idx := range a.users {
-		if a.users[idx].ID == userId && a.users[idx].NumArticles < a.maxArticles {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (a *Users) AddUserArticle(userId int) bool {
-
-	for idx := range a.users {
-		if a.users[idx].ID == userId && a.users[idx].NumArticles < a.maxArticles {
-			a.users[idx].NumArticles++
-			return true
-		}
-	}
-
-	return false
+	return user.NumArticles >= a.Articles.Max
 }
 
 func (a *Users) firstName() string {

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/joaoribeirodasilva/hammer/database"
 	"github.com/joho/godotenv"
 )
 
@@ -15,6 +16,7 @@ type Limits struct {
 }
 
 type Main struct {
+	Db        *database.Database
 	DsnMaster string
 	DsnClient string
 	IsClient  bool
@@ -50,10 +52,43 @@ func (m *Main) readEnv() {
 		log.Fatal("the program is running as client but no DSN_CLIENT was found inside the .env file")
 	}
 
+	m.Db = database.New()
+
+	if !m.IsClient {
+		m.Db.Connect(m.DsnMaster)
+	} else {
+		m.Db.Connect(m.DsnClient)
+	}
+
 	m.run()
 }
 
 func (m *Main) run() {
+
+	users := &Users{}
+	articles := &Articles{}
+	accesses := &Accesses{}
+
+	if !m.IsClient {
+		articles.InitArticles(5, 10, m.Db)
+		users.InitUsers(m.Db, articles)
+	}
+	accesses.InitAccesses(m.ServerID, m.Db)
+
+	if m.Accesses.Current < m.Accesses.Max {
+		accesses.CreateAccess()
+		m.Accesses.Current++
+	}
+
+	var usr *CreatedUsers
+	if m.Users.Current < m.Users.Max {
+		usr = users.CreateUser()
+		users.CreateUserArticle(usr)
+	} else {
+		usr = users.GetRandomUser()
+	}
+
+	users.CreateUserArticle(usr)
 
 }
 
